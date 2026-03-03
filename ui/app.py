@@ -212,27 +212,14 @@ class PlotterApp:
         self._pen_width_var = tk.DoubleVar(value=1.5)
         slider_row("Pen width (px)", self._pen_width_var, 0.5, 5.0, 0.5)
 
-        self._amplitude_var = tk.DoubleVar(value=1.2)
-        slider_row("Max amplitude (px)", self._amplitude_var, 0.3, 4.0, 0.1)
-
-        self._step_var = tk.DoubleVar(value=1.0)
-        slider_row("Step size (px)", self._step_var, 0.5, 2.0, 0.25)
-
         # ── Advanced ───────────────────────────────────────────────────────
         section("Advanced")
-        self._etf_iter_var = tk.IntVar(value=3)
-        slider_row("ETF iterations", self._etf_iter_var, 1, 3, 1, fmt='{:.0f}')
+        self._direction_weight_var = tk.DoubleVar(value=1.0)
+        slider_row("Direction weight", self._direction_weight_var,
+                   0.0, 2.0, 0.1)
 
         self._chaikin_var = tk.IntVar(value=3)
         slider_row("Smoothing passes", self._chaikin_var, 2, 5, 1, fmt='{:.0f}')
-
-        self._base_freq_var = tk.DoubleVar(value=0.02)
-        slider_row("Base frequency", self._base_freq_var,
-                   0.005, 0.05, 0.005, fmt='{:.3f}')
-
-        self._max_freq_var = tk.DoubleVar(value=0.15)
-        slider_row("Max frequency", self._max_freq_var,
-                   0.05, 0.30, 0.01, fmt='{:.3f}')
 
         # Spacer
         ttk.Frame(parent, style='Panel.TFrame').pack(fill=tk.BOTH, expand=True)
@@ -314,14 +301,9 @@ class PlotterApp:
 
         spacing = self._spacing_var.get()
         params = {
-            'base_spacing':     spacing,
-            'min_spacing':      self._pen_width_var.get() * 1.2,
-            'max_amplitude':    self._amplitude_var.get(),
-            'step_size':        self._step_var.get(),
-            'base_freq':        self._base_freq_var.get(),
-            'max_freq':         self._max_freq_var.get(),
-            'pen_width':        self._pen_width_var.get(),
-            'etf_iterations':   self._etf_iter_var.get(),
+            'base_spacing':       spacing,
+            'pen_width':          self._pen_width_var.get(),
+            'direction_weight':   self._direction_weight_var.get(),
             'chaikin_iterations': self._chaikin_var.get(),
         }
 

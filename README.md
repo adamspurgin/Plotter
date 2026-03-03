@@ -1,21 +1,19 @@
 # Image → SVG Plotter
 
-A desktop application that converts color images into multi-channel SVG files optimised for pen plotters. Each pen color is rendered as a single continuous, non-self-intersecting path whose local density and tortuosity reproduce the tonal values of the original image.
+A desktop application that converts color images into multi-channel SVG files optimised for pen plotters. Each pen color is rendered as a single continuous path whose point density reproduces the tonal values of the original image.
 
 ---
 
 ## How It Works
 
-The algorithm decomposes an input image into CMYK ink channels and generates one flow-guided, density-modulated streamline per channel:
+The algorithm decomposes an input image into CMYK ink channels and generates one stochastically-routed path per channel:
 
-1. **Color decomposition** — RGB image is converted to CMYK density fields (or an arbitrary N-pen palette via non-negative least squares).
+1. **Color decomposition** — RGB image is converted to CMYK density fields.
 2. **Density field preparation** — bilateral filtering, gamma correction, and Gaussian smoothing clean each channel.
-3. **Edge Tangent Flow (ETF)** — a shared orientation field is computed from the image so lines from all pens flow in harmonious directions. Each channel receives a rotated copy (C=15°, M=75°, Y=0°, K=45°) to prevent moiré patterns.
-4. **Path generation** — a Hilbert-curve visitation order seeds a backbone path through the image. The backbone is smoothed (Chaikin), aligned to the ETF, and then modulated with a sine wiggle whose amplitude and frequency encode local ink density.
-5. **Non-intersection enforcement** — a spatial occupancy grid prevents each channel's path from crossing itself.
+3. **Stochastic point distribution** — points are sampled from the density field using stratified random sampling. The image is divided into cells of size `base_spacing × base_spacing`; each cell is accepted with probability equal to its mean density and a point is placed at a random sub-pixel position within it. Dark areas receive many closely-spaced points; highlights receive few or none.
+4. **Nearest-neighbor TSP routing** — the sampled points are connected into a single continuous path using a nearest-neighbor TSP heuristic. A directional penalty discourages the solver from continuing straight ahead, naturally breaking up long linear runs and introducing angular variety without sacrificing continuity.
+5. **Smoothing** — Chaikin corner-cutting rounds the tour into a plotter-friendly curve.
 6. **SVG export** — paths are exported as coloured polylines in a single multi-layer SVG, ordered Y → C → M → K for optimal plotter results.
-
-See [`color_plotter_algorithm.md`](color_plotter_algorithm.md) for the full algorithmic specification including all pseudocode and implementation details.
 
 ---
 
@@ -24,7 +22,7 @@ See [`color_plotter_algorithm.md`](color_plotter_algorithm.md) for the full algo
 - Dark-themed Tkinter GUI — no browser required
 - Live input image preview and rendered output preview
 - Per-channel path rendering (Y, C, M, K) in the preview canvas
-- Adjustable parameters: base spacing, pen width, wiggle amplitude/frequency, ETF iterations, smoothing passes
+- Adjustable parameters: base spacing, pen width, direction weight, smoothing passes
 - Processing runs in a background thread with a live progress bar
 - One-click SVG export
 - Portable Windows `.exe` via PyInstaller — no Python installation needed on the target machine
@@ -89,14 +87,10 @@ The distributable output will be in `dist\PlotterApp\`. Run `dist\PlotterApp\Plo
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | Max dimension (px) | 400 | Image is downscaled so its longest side is this many pixels before processing |
-| Base spacing (px) | 3.0 | Nominal distance between parallel path segments. Smaller = more detail, longer processing |
-| Pen width (px) | 1.5 | Physical pen width; determines minimum gap between segments |
-| Max amplitude (px) | 1.2 | Maximum sine wiggle amplitude in dark areas. Must be < base spacing / 2 |
-| Step size (px) | 1.0 | Path integration step. Smaller = smoother curves, more points |
-| ETF iterations | 3 | Edge Tangent Flow refinement passes. More = smoother flow |
-| Smoothing passes | 3 | Chaikin corner-cutting iterations applied to paths |
-| Base frequency | 0.02 | Wiggle frequency in light areas (nearly straight lines) |
-| Max frequency | 0.15 | Wiggle frequency in dark areas (dense scribble) |
+| Base spacing (px) | 3.0 | Cell size for stratified sampling. Smaller = more points, more detail, longer routing |
+| Pen width (px) | 1.5 | Physical pen width; used for SVG stroke width |
+| Direction weight | 1.0 | TSP directional penalty. `0` = pure nearest-neighbour (may create linear runs). `~1` = moderate angular variety. `2` = strong turn preference |
+| Smoothing passes | 3 | Chaikin corner-cutting iterations applied to the final path |
 
 ---
 
@@ -108,15 +102,12 @@ Plotter/
 ├── requirements.txt             # Python dependencies
 ├── build.bat                    # Windows build script (PyInstaller)
 ├── plotter.spec                 # PyInstaller spec file
-├── color_plotter_algorithm.md   # Full algorithm specification
+├── color_plotter_algorithm.md   # Background algorithmic notes
 ├── algorithm/                   # Core algorithm package
 │   ├── __init__.py
 │   ├── color_decompose.py       # RGB → CMYK conversion
 │   ├── density_field.py         # Density field preprocessing
-│   ├── etf.py                   # Edge Tangent Flow computation
-│   ├── hilbert.py               # Hilbert curve (d2xy)
-│   ├── occupancy.py             # Spatial occupancy grid
-│   ├── path_generator.py        # Main path generation pipeline
+│   ├── path_generator.py        # Stochastic sampling + NN-TSP routing
 │   ├── smoothing.py             # Chaikin smoothing & polyline resampling
 │   └── svg_export.py            # Multi-channel SVG export
 └── ui/
